@@ -1,3 +1,9 @@
+// ***To Do List***
+// fix persons in features
+//fix facts so you can search similar items as instructed
+//make sure handling undefined keys properly
+//
+
 // ***Global Constants***
 const BASE_URL = 'https://api.harvardartmuseums.org';
 const KEY = 'apikey=c92d8284-cb5f-4ceb-b9ae-259680172691'; // USE YOUR KEY HERE
@@ -6,9 +12,15 @@ const KEY = 'apikey=c92d8284-cb5f-4ceb-b9ae-259680172691'; // USE YOUR KEY HERE
 function onFetchStart() {
     $('#loading').addClass('active');
 }
-const factSpan = (title, content) => {
+const factSpan = (title, content, searchUrl = null) => {
+    let aBegin = '';
+    let aEnd = '';
+    if (searchUrl) {
+        aBegin = `<a href="${searchUrl}">`;
+        aEnd = '</a>';
+    }
     return $(`<span class="title">${title}</span>
-    <span class="content">${content}</span>`)
+    <span class="content">${aBegin}${content}${aEnd}</span>`)
 }
 
 function onFetchEnd() {
@@ -193,22 +205,24 @@ const renderFeature = record => {
         facts.append(factSpan('Description', description));
     }
     if (culture) {
-        facts.append(factSpan('Culture', culture));
+        facts.append(factSpan('Culture', culture, searchURL('culture', culture)));
     }
     if (style) {
         facts.append(factSpan('Style', style));
     }
     if (technique) {
-        facts.append(factSpan('Technique', technique));
+        facts.append(factSpan('Technique', technique, searchURL('technique', technique)));
     }
     if (medium) {
-        facts.append(factSpan('Medium', medium));
+        facts.append(factSpan('Medium', medium, searchURL('Medium', medium)));
     }
     if (dimensions) {
         facts.append(factSpan('Dimensions', dimensions));
     }
     if (people) {
-        facts.append(factSpan('People', people));
+        people.forEach(item => {
+            facts.append(factSpan('Person', item.displayname, searchURL('person', item.displayname)))
+        })
     }
     if (department) {
         facts.append(factSpan('Department', department));
@@ -224,10 +238,19 @@ const renderFeature = record => {
     }
 
     template.append(facts).append(photos);
+    // createContentClickHandler();
 
     return template;
 
 }
+
+function searchURL(searchType, searchString) {
+    return `${BASE_URL}/object?${KEY}&${searchType}=${searchString}`;
+}
+
+// ***Initialize***
+bootStrap();
+
 
 // ***Event Listeners***
 $('#search').on('submit', async function (event) {
@@ -280,5 +303,23 @@ $('#preview').on('click', '.object-preview', function (event) {
     $('#feature').append(renderFeature(record));
 });
 
-// ***Initialize***
-bootStrap();
+$('#feature').on('click', 'a', async function (event) {
+    event.preventDefault(); // they're anchor tags, so don't follow the link
+    onFetchStart();
+
+    try {
+
+        const url = $(this).attr('href');
+
+        const response = await fetch(url);
+        const data = await response.json();
+        const records = data.records;
+        const info = data.info;
+        updatePreview(records, info);
+
+    } catch (error) {
+        // log out the error
+    } finally {
+        onFetchEnd();
+    }
+});
